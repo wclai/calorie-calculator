@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動卡路里消耗計算與體重趨勢模擬器</title>
+    <!-- 引入 Tailwind CSS 進行快速、響應式的美觀設計 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js 繪圖 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <style>
+        /* 設置基本字體和背景 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f7f9fb;
+        }
+        /* 卡片樣式 */
+        .card {
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 1.25rem; 
+            margin-bottom: 0.75rem; 
+            border: 1px solid #e2e8f0;
+        }
+        /* 標題顏色 */
+        .primary-color {
+            color: #3b82f6; /* 藍色 */
+        }
+        /* Slider 樣式 */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #3b82f6;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+        }
+        /* Toggle Button Group */
+        .toggle-group input:checked + label {
+            background-color: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.4);
+        }
+        .toggle-group label {
+            transition: all 0.2s ease;
+        }
+
+        /* 響應式佈局：確保在桌面上整個內容區域填滿螢幕高度，並啟用內部捲動 */
+        @media (min-width: 1024px) {
+            body {
+                height: 100vh;
+                padding-top: 1rem;
+                padding-bottom: 1rem;
+            }
+            #main-container {
+                height: calc(100vh - 2rem); 
+            }
+            #main-layout {
+                grid-template-columns: 1fr 1.5fr;
+                flex-grow: 1;
+                overflow: hidden; 
+            }
+        }
+        /* RWD 修正：確保在手機上滑桿區域有足夠的高度 */
+        @media (max-width: 767px) {
+            .input-group-stack > div {
+                margin-bottom: 1rem; /* 增加每個輸入區域之間的間距 */
+            }
+        }
+    </style>
+</head>
+<body class="p-4 lg:p-8">
+    <div id="main-container" class="max-w-6xl mx-auto flex flex-col">
+        <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4 primary-color text-center flex-shrink-0">
+            卡路里消耗與體重趨勢模擬器
+        </h1>
+
+        <!-- 主佈局區：在手機上自然流動，桌面端佔滿剩餘高度 -->
+        <div id="main-layout" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:flex-grow">
+
+            <!-- 左側輸入欄：在桌面端會填滿高度 -->
+            <div class="flex flex-col space-y-4 lg:h-full">
+
+                <!-- A. 基本條件輸入 - 固定高度 -->
+                <div id="input-bmc" class="card flex-shrink-0">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-700">A. 基本條件與飲食</h2>
+
+                    <!-- 性別 -->
+                    <div class="mb-4">
+                        <label class="block text-gray-600 mb-1 font-medium text-sm">性別</label>
+                        <div id="gender-group" class="toggle-group flex rounded-lg overflow-hidden border border-gray-300">
+                            <input type="radio" id="male" name="gender" value="male" checked class="hidden" onchange="calculate()">
+                            <label for="male" class="flex-1 text-center py-1.5 px-4 cursor-pointer text-gray-700 hover:bg-gray-50 text-sm">男性</label>
+                            <input type="radio" id="female" name="gender" value="female" class="hidden" onchange="calculate()">
+                            <label for="female" class="flex-1 text-center py-1.5 px-4 cursor-pointer text-gray-700 hover:bg-gray-50 text-sm">女性</label>
+                        </div>
+                    </div>
+
+                    <!-- 身高, 體重, 年齡 - 【RWD 修正點】在手機上改為單欄垂直堆疊 (grid-cols-1) -->
+                    <div class="grid grid-cols-1 gap-3 mb-4 text-xs md:grid-cols-3 input-group-stack">
+                        <div><label for="height" class="block text-gray-600 font-medium mb-1">身高 (cm)</label><input type="range" id="height" min="140" max="200" value="170" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateValue('height')" onchange="calculate()"><p class="text-center font-bold primary-color"><span id="height-val">170</span> cm</p></div>
+                        <div><label for="weight" class="block text-gray-600 font-medium mb-1">體重 (kg)</label><input type="range" id="weight" min="40" max="150" value="70" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateValue('weight')" onchange="calculate()"><p class="text-center font-bold primary-color"><span id="weight-val">70</span> kg</p></div>
+                        <div><label for="age" class="block text-gray-600 font-medium mb-1">年齡 (歲)</label><input type="range" id="age" min="18" max="80" value="30" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateValue('age')" onchange="calculate()"><p class="text-center font-bold primary-color"><span id="age-val">30</span> 歲</p></div>
+                    </div>
+                    
+                    <!-- 日常活動程度 -->
+                    <div class="mb-4">
+                        <label for="activity-level" class="block text-gray-600 mb-1 font-medium text-sm">日常活動程度</label>
+                        <select id="activity-level" class="w-full p-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="calculate()">
+                            <option value="久坐不動">久坐不動 (辦公室工作)</option>
+                            <option value="輕度活動">輕度活動 (站立/輕家務)</option>
+                            <option value="中度活動" selected>中度活動 (服務業/規律走動)</option>
+                            <option value="高度活動">高度活動 (體力勞動/建築)</option>
+                            <option value="極度活動">極度活動 (專業運動訓練)</option>
+                        </select>
+                    </div>
+
+                    <!-- 每日飲食攝取量 -->
+                    <div>
+                        <label for="daily-intake" class="block text-gray-600 mb-1 font-medium text-sm">每日飲食卡路里攝取量 (大卡)</label>
+                        <input type="number" id="daily-intake" min="500" max="5000" value="2000" class="w-full p-2 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="calculate()" onblur="calculate()">
+                        <p class="text-xs text-gray-500 mt-1">
+                            💡 **參考錨點：** 女性約 1800 大卡；男性約 2200 大卡。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- B. 運動計劃輸入 - 【RWD 修正區域】讓其在手機上自然流動，桌面填滿剩餘高度並內部捲動 -->
+                <div id="input-exercise" class="card p-4 flex flex-col lg:flex-1 lg:overflow-hidden min-h-[250px]">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-700 flex-shrink-0">B. 運動計劃模擬 (每天)</h2>
+                    
+                    <!-- 運動卡片列表：在手機上會自然伸展，在桌面端 (lg) 才會啟用內部滾動和高度填滿 -->
+                    <!-- 修正: 增加 lg:h-0 確保 Flexbox 在 lg:flex-grow 時正確計算高度，啟用 overflow-y-auto -->
+                    <div id="exercise-list" class="space-y-3 mb-3 pr-2 border-t border-gray-100 pt-3 min-h-[150px] lg:overflow-y-auto lg:flex-grow lg:h-0">
+                        <!-- 運動卡片將會被 JS 插入這裡 -->
+                    </div>
+
+                    <!-- 按鈕：固定在底部 -->
+                    <button onclick="addExerciseCard()" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 ease-in-out flex-shrink-0">
+                        (+) 增加運動
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- 右側結果報表 - 在手機上自然流動，桌面端內部捲動 -->
+            <div id="results" class="flex flex-col space-y-4 lg:h-full lg:overflow-y-auto">
+
+                <!-- 關鍵數據結果 -->
+                <div class="card bg-blue-50 border-blue-200 flex-shrink-0">
+                    <h2 class="text-lg font-semibold mb-3 text-blue-700">每日計算概要</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="p-2 bg-white rounded-lg shadow-sm border border-blue-100">
+                            <p class="text-xs text-gray-500">基礎代謝率 (BMR)</p>
+                            <p class="text-lg font-bold text-blue-800"><span id="bmr-val">0</span> 大卡</p>
+                        </div>
+                        <div class="p-2 bg-white rounded-lg shadow-sm border border-blue-100">
+                            <p class="text-xs text-gray-500">每日總消耗 (TDEE)</p>
+                            <p class="text-lg font-bold text-blue-800"><span id="tdee-val">0</span> 大卡</p>
+                        </div>
+                    </div>
+                    <div id="net-calorie-display" class="mt-3 p-3 rounded-lg text-center shadow-md">
+                        <p class="text-sm font-semibold mb-1 text-gray-700">每日淨熱量盈虧 (大卡)</p>
+                        <p class="text-2xl font-extrabold"><span id="net-calorie-val">0</span> 大卡</p>
+                        
+                        <!-- 體重變化顯示 -->
+                        <p class="mt-1 text-xs font-medium text-gray-600">
+                            預計每天體重
+                            <span id="weight-direction-text" class="font-bold text-gray-700">變化</span>：
+                            <span id="daily-weight-change-val" class="font-bold">0.000</span> 公斤
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 報表一：熱量平衡分析 - 【RWD 修正區域】在手機上移除 flex-1 -->
+                <div class="card lg:flex-1">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-700">報表一：熱量平衡分析 (大卡)</h3>
+                    <div class="relative h-64 lg:h-80">
+                        <canvas id="calorieBalanceChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- 報表二：體重變化趨勢 - 【RWD 修正區域】在手機上移除 flex-1 -->
+                <div class="card lg:flex-1">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-700">報表二：預計體重變化趨勢 (12 週)</h3>
+                    <p class="text-xs text-gray-500 mb-2">
+                        💡 **迭代模擬**：每週的體重變化會根據您當時的體重重新計算 BMR 和運動消耗，結果更接近現實。
+                    </p>
+                    <div class="relative h-64 lg:h-80">
+                        <canvas id="weightPredictionChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // METs 數據表格 (硬編碼)
+        const METS_DATA = {
+            "跑步": [
+                { "強度": "慢跑 (約 8 km/h)", "METs": 8.0 },
+                { "強度": "中速跑 (約 10 km/h)", "METs": 10.0 },
+                { "強度": "衝刺跑 (約 12 km/h 以上)", "METs": 12.5 }
+            ],
+            "游泳": [
+                { "強度": "輕量/休閒式游泳", "METs": 6.0 },
+                { "強度": "劇烈/訓練式游泳", "METs": 10.0 }
+            ],
+            "單車": [
+                { "強度": "輕度 (約 16 km/h)", "METs": 6.8 },
+                { "強度": "中度 (約 20-25 km/h)", "METs": 10.0 },
+                { "強度": "劇烈 (約 30 km/h 以上)", "METs": 14.0 }
+            ],
+            "健行": [
+                { "強度": "平地快走/健行", "METs": 4.5 },
+                { "強度": "爬坡健行", "METs": 6.0 }
+            ],
+            "肌力訓練": [
+                { "強度": "輕度努力", "METs": 3.5 },
+                { "強度": "中度努力 (一般訓練)", "METs": 5.0 },
+                { "強度": "劇烈努力 (高強度)", "METs": 8.0 }
+            ],
+            "日常活動": [
+                { "強度": "家務清潔 (拖地、吸塵)", "METs": 3.3 },
+                { "強度": "快步走 (購物、通勤)", "METs": 3.5 },
+                { "強度": "爬樓梯 (一般速度)", "METs": 4.0 }
+            ]
+        };
+
+        const ACTIVITY_FACTORS = {
+            "久坐不動": 1.2,
+            "輕度活動": 1.375,
+            "中度活動": 1.55,
+            "高度活動": 1.725,
+            "極度活動": 1.9
+        };
+
+        // 圖表實例
+        let calorieBalanceChart = null;
+        let weightPredictionChart = null;
+        let exerciseCardCount = 0;
+
+        // --- 核心計算函式 ---
+
+        /**
+         * 計算基礎代謝率 (BMR) - Mifflin-St Jeor Equation
+         */
+        function calculateBMR(gender, weight_kg, height_cm, age_years) {
+            let bmr = (10 * weight_kg) + (6.25 * height_cm) - (5 * age_years);
+            if (gender === 'male') {
+                bmr += 5;
+            } else { // female
+                bmr -= 161;
+            }
+            return Math.round(bmr);
+        }
+
+        /**
+         * 計算每日總熱量消耗 (TDEE)
+         */
+        function calculateTDEE(bmr, activity_level) {
+            const factor = ACTIVITY_FACTORS[activity_level] || 1.2;
+            return Math.round(bmr * factor);
+        }
+
+        /**
+         * 計算運動熱量消耗 (METs 公式)
+         */
+        function calculateExerciseBurn(mets, weight_kg, time_min) {
+            // Calories Burned = (METs * 3.5 * W) / 200 * T
+            if (time_min <= 0 || mets <= 0) return 0;
+            const burn = (mets * 3.5 * weight_kg) / 200 * time_min;
+            return Math.round(burn);
+        }
+
+        /**
+         * 體重變化計算
+         * @param {number} net_calorie_change - 淨熱量變化 (攝取 - 消耗)，正數為盈餘 (增重)，負數為虧損 (減重)
+         */
+        function calculateWeightChange(net_calorie_change) {
+            // 1 公斤脂肪約 = 7700 大卡
+            const change_kg = net_calorie_change / 7700;
+            return parseFloat(change_kg.toFixed(4)); // 返回浮點數 (正數為增加，負數為減少)
+        }
+
+        // --- UI 互動函式 ---
+
+        /**
+         * 更新 Slider 的數值顯示
+         */
+        function updateValue(id) {
+            const slider = document.getElementById(id);
+            const valEl = document.getElementById(id + '-val');
+            if (slider && valEl) valEl.innerText = slider.value;
+        }
+
+        /**
+         * 處理運動類型變化，更新強度選項
+         */
+        function updateIntensityOptions(cardId) {
+            const typeSelect = document.getElementById(`exercise-type-${cardId}`);
+            const intensitySelect = document.getElementById(`exercise-intensity-${cardId}`);
+            
+            if (!typeSelect || !intensitySelect) return;
+
+            const selectedType = typeSelect.value;
+            
+            // 清空舊選項
+            intensitySelect.innerHTML = '';
+            
+            if (METS_DATA[selectedType]) {
+                METS_DATA[selectedType].forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item.METs;
+                    option.textContent = item.強度;
+                    intensitySelect.appendChild(option);
+                });
+            }
+
+            // 觸發重新計算
+            calculate();
+        }
+
+        /**
+         * 增加運動卡片
+         */
+        function addExerciseCard() {
+            exerciseCardCount++;
+            const id = exerciseCardCount;
+            const list = document.getElementById('exercise-list');
+            
+            if (!list) return;
+
+            const newCard = document.createElement('div');
+            newCard.id = `exercise-card-${id}`;
+            newCard.className = 'card p-3 border border-blue-200 bg-white shadow-md relative';
+            newCard.innerHTML = `
+                <button onclick="removeExerciseCard(${id})" class="absolute top-1 right-1 text-red-500 hover:text-red-700 transition duration-150" aria-label="移除運動">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
+                </button>
+                <div class="mb-2">
+                    <label class="block text-gray-600 mb-0.5 font-medium text-xs">運動類型</label>
+                    <select id="exercise-type-${id}" class="w-full p-1.5 text-xs border border-gray-300 rounded-lg" onchange="updateIntensityOptions(${id})">
+                        ${Object.keys(METS_DATA).map(type => `<option value="${type}">${type}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="block text-gray-600 mb-0.5 font-medium text-xs">運動強度</label>
+                    <select id="exercise-intensity-${id}" class="w-full p-1.5 text-xs border border-gray-300 rounded-lg" onchange="calculate()">
+                        <!-- 選項由 JS 填充 -->
+                    </select>
+                </div>
+                <div>
+                    <label for="exercise-time-${id}" class="block text-gray-600 font-medium mb-0.5 text-xs">每天運動時間 (分鐘)</label>
+                    <input type="range" id="exercise-time-${id}" min="0" max="120" step="10" value="30" class="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer" oninput="updateTimeValue(${id})" onchange="calculate()">
+                    <p class="text-center text-xs font-bold text-blue-600"><span id="exercise-time-val-${id}">30</span> 分鐘</p>
+                </div>
+            `;
+            list.appendChild(newCard);
+            
+            // 初始化強度選項
+            updateIntensityOptions(id);
+            // 在手機版時，列表捲動到底部，確保新卡片可見
+            if (window.innerWidth < 1024) {
+                 // 在手機上，讓整個 body 捲動，而不是內部列表
+            } else {
+                 list.scrollTop = list.scrollHeight;
+            }
+        }
+
+        /**
+         * 移除運動卡片
+         */
+        function removeExerciseCard(id) {
+            const card = document.getElementById(`exercise-card-${id}`);
+            if (card) card.remove();
+            calculate();
+        }
+
+        /**
+         * 更新運動時間 Slider 數值
+         */
+        function updateTimeValue(id) {
+             const slider = document.getElementById(`exercise-time-${id}`);
+             const valEl = document.getElementById(`exercise-time-val-${id}`);
+             if (slider && valEl) valEl.innerText = slider.value;
+        }
+
+        // --- 圖表繪製函式 ---
+
+        /**
+         * 繪製熱量平衡圖 (Stacked Bar Chart)
+         */
+        function drawCalorieBalanceChart(bmr, nonBmrBurn, totalExerciseBurn, dailyIntake) {
+            const canvas = document.getElementById('calorieBalanceChart');
+            if (!canvas) return;
+            
+            const ctx = canvas.getContext('2d');
+            
+            if (calorieBalanceChart) {
+                calorieBalanceChart.destroy();
+            }
+
+            calorieBalanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['熱量分析'],
+                    datasets: [
+                        { label: '飲食攝取', data: [dailyIntake], backgroundColor: '#ef4444' }, 
+                        { label: '基礎代謝 (BMR)', data: [-bmr], backgroundColor: '#99f6e4' },
+                        { label: '日常活動消耗', data: [-nonBmrBurn], backgroundColor: '#34d399' },
+                        { label: '運動消耗', data: [-totalExerciseBurn], backgroundColor: '#10b981' },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true },
+                        y: {
+                            stacked: true, 
+                            title: { display: true, text: '大卡 (Kcal)' }
+                        }
+                    },
+                    plugins: { legend: { position: 'top' }, title: { display: false } }
+                }
+            });
+        }
+
+        /**
+         * 繪製體重變化趨勢圖 (Line Chart) - 已修正為迭代計算
+         * 每次計算都使用上一週結束時的體重來重新計算 BMR 和運動消耗。
+         */
+        function drawWeightPredictionChart(gender, height_cm, age_years, activity_level, initialWeight, initialTotalExerciseBurn, dailyIntake) {
+            const canvas = document.getElementById('weightPredictionChart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const weeks = 12; 
+            // 標籤包含第 0 週 (起始) 到 第 12 週 (結束)
+            const labels = Array.from({ length: weeks + 1 }, (_, i) => `第 ${i} 週`);
+            const weightData = [];
+            
+            // 這是初始體重，也是第 0 週的體重
+            let currentWeight = initialWeight;
+            const initialWeightVal = initialWeight; // 儲存初始體重用於比例計算
+
+            let predictedMin = initialWeight;
+            let predictedMax = initialWeight;
+
+            // 1. 記錄第 0 週 (起始) 體重
+            weightData.push(currentWeight.toFixed(2));
+
+            // 2. 迭代計算 1 到 12 週的體重
+            for (let i = 1; i <= weeks; i++) { 
+                
+                const weekStartWeight = currentWeight; // 這就是上一週結束時的體重
+
+                // 2.1. 根據當前體重重新計算 BMR 和 TDEE
+                const bmr_i = calculateBMR(gender, weekStartWeight, height_cm, age_years);
+                const tdee_i = calculateTDEE(bmr_i, activity_level);
+
+                // 2.2. 根據當前體重重新計算運動消耗 (假設 METs 和時間不變，消耗與體重成正比: E_i = E_0 * (W_i / W_0))
+                let exerciseBurn_i = 0;
+                // 注意：這裡使用初始運動消耗 * (當前體重 / 初始體重) 來近似新的運動消耗
+                if (initialWeightVal > 0) {
+                   exerciseBurn_i = initialTotalExerciseBurn * (weekStartWeight / initialWeightVal);
+                }
+
+                // 2.3. 計算每日總消耗和淨熱量盈虧
+                const totalOut_i = tdee_i + exerciseBurn_i;
+                const netCalorie_i = dailyIntake - totalOut_i; 
+                
+                // 2.4. 計算一週的體重變化
+                const dailyWeightChange_i = calculateWeightChange(netCalorie_i);
+                const weightChange_week = dailyWeightChange_i * 7;
+                
+                let predictedWeight = weekStartWeight + weightChange_week;
+                
+                // 2.5. 更新下一輪的體重，並記錄本週結束的體重
+                currentWeight = predictedWeight;
+                weightData.push(currentWeight.toFixed(2));
+
+                if (predictedWeight < predictedMin) predictedMin = predictedWeight;
+                if (predictedWeight > predictedMax) predictedMax = predictedWeight;
+            }
+
+            // --- 優化後的 Y 軸動態範圍計算邏輯 ---
+            const W_min = predictedMin;
+            const W_max = predictedMax;
+
+            // 1. 確定目標中心點 (W_mid)
+            const W_mid = (W_min + W_max) / 2;
+
+            // 2. 確定軸線總範圍 (AxisRange)
+            const dataRange = W_max - W_min;
+            const padding = 2.0; // 2 kg 緩衝
+            const MVR = 10.0;    // 最小可視範圍是 10 kg (以確保視覺斜率)
+
+            const AxisRange = Math.max(dataRange + padding, MVR);
+
+            // 3. 確定最終的 Y 軸上下限
+            let yAxisMin = W_mid - (AxisRange / 2);
+            let yAxisMax = W_mid + (AxisRange / 2);
+
+            // 確保最小值不會讓圖表看起來很擠 (向下取整至 5 的倍數，讓軸線更整潔)
+            yAxisMin = Math.floor(yAxisMin / 5) * 5;
+            yAxisMax = Math.ceil(yAxisMax / 5) * 5;
+            // 避免 Y 軸範圍過小，即使四捨五入後，也要確保 AxisRange 至少為 MVR
+            if (yAxisMax - yAxisMin < MVR) {
+                 yAxisMax = yAxisMin + MVR;
+            }
+            // --- 結束 Y 軸動態範圍計算邏輯 ---
+
+
+            if (weightPredictionChart) {
+                weightPredictionChart.destroy();
+            }
+
+            // 判斷線條顏色：使用初始計算的 dailyWeightChange (淨熱量盈虧) 來判斷趨勢顏色
+            const initialBmr = calculateBMR(gender, initialWeight, height_cm, age_years);
+            const initialTdee = calculateTDEE(initialBmr, activity_level);
+            const initialNetCalorie = dailyIntake - (initialTdee + initialTotalExerciseBurn);
+            
+            // 增重 (正數) 用紅色，減重 (負數) 用綠色，平衡用藍色
+            const lineColor = initialNetCalorie > 0.001 ? '#ef4444' : (initialNetCalorie < -0.001 ? '#10b981' : '#3b82f6');
+
+
+            weightPredictionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '預計體重 (kg)',
+                        data: weightData,
+                        borderColor: lineColor,
+                        backgroundColor: lineColor + '33',
+                        tension: 0.3,
+                        pointRadius: 4, 
+                        pointHoverRadius: 6,
+                        pointBackgroundColor: lineColor,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            min: yAxisMin, 
+                            max: yAxisMax, 
+                            title: { display: true, text: '體重 (kg)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+
+        /**
+         * 主計算函數：讀取所有輸入並更新結果
+         */
+        function calculate() {
+            // 1. 讀取 BMC 輸入
+            const gender = document.querySelector('input[name="gender"]:checked')?.value || 'male';
+            const height_cm = parseFloat(document.getElementById('height')?.value || 170);
+            const weight_kg = parseFloat(document.getElementById('weight')?.value || 70);
+            const age_years = parseFloat(document.getElementById('age')?.value || 30);
+            const activity_level = document.getElementById('activity-level')?.value || '中度活動';
+            
+            // 處理每日飲食攝取量 
+            let daily_intake_input = document.getElementById('daily-intake');
+            let daily_intake = parseFloat(daily_intake_input?.value || 2000);
+
+            // 確保值在有效範圍內
+            if (isNaN(daily_intake) || daily_intake < 500) {
+                daily_intake = 500;
+            } else if (daily_intake > 5000) {
+                daily_intake = 5000;
+            }
+            if (parseFloat(daily_intake_input.value) !== daily_intake) {
+                 daily_intake_input.value = daily_intake;
+            }
+
+            // 2. 核心計算 (基於當前輸入的體重)
+            const bmr = calculateBMR(gender, weight_kg, height_cm, age_years);
+            const bmrEl = document.getElementById('bmr-val');
+            if (bmrEl) bmrEl.innerText = bmr;
+
+            const tdee = calculateTDEE(bmr, activity_level);
+            const tdeeEl = document.getElementById('tdee-val');
+            if (tdeeEl) tdeeEl.innerText = tdee;
+
+            // 日常活動消耗 (不含 BMR) - 用於圖表
+            const nonBmrBurn = tdee - bmr;
+
+            // 3. 運動計劃計算 (基於當前輸入的體重)
+            let totalExerciseBurn = 0;
+            const exerciseCards = document.querySelectorAll('#exercise-list > div');
+            
+            exerciseCards.forEach(card => {
+                const id = card.id.split('-')[2];
+                const metsEl = document.getElementById(`exercise-intensity-${id}`);
+                const timeEl = document.getElementById(`exercise-time-${id}`);
+                
+                if (metsEl && timeEl) {
+                    const mets = parseFloat(metsEl.value);
+                    const time_min = parseFloat(timeEl.value);
+                    const burn = calculateExerciseBurn(mets, weight_kg, time_min);
+                    totalExerciseBurn += burn;
+                }
+            });
+
+            // 4. 淨熱量盈虧計算 (盈餘為正，虧損為負)
+            // 總消耗 = TDEE (基礎+活動) + 額外運動消耗
+            const totalOut = tdee + totalExerciseBurn;
+            const netCalorie = daily_intake - totalOut; 
+            const dailyWeightChange = calculateWeightChange(netCalorie);
+            
+            // 5. 更新結果顯示區
+            const netCalorieDisplay = document.getElementById('net-calorie-display');
+            const netCalorieValEl = document.getElementById('net-calorie-val');
+            const dailyWeightChangeValEl = document.getElementById('daily-weight-change-val');
+            const weightDirectionTextEl = document.getElementById('weight-direction-text');
+
+            if (netCalorieValEl) netCalorieValEl.innerText = netCalorie.toLocaleString('en', {signDisplay: 'always'});
+            if (dailyWeightChangeValEl) dailyWeightChangeValEl.innerText = Math.abs(dailyWeightChange).toFixed(3);
+
+            // 顏色和文字提示
+            if (netCalorieDisplay && weightDirectionTextEl) { 
+                if (netCalorie > 0) {
+                    netCalorieDisplay.className = 'mt-3 p-3 rounded-lg shadow-md bg-red-100 border border-red-300 text-center';
+                    if (netCalorieValEl) {
+                        netCalorieValEl.classList.remove('text-green-600');
+                        netCalorieValEl.classList.add('text-red-600');
+                    }
+                    weightDirectionTextEl.innerText = `增加`;
+                    weightDirectionTextEl.classList.add('text-red-600');
+                    weightDirectionTextEl.classList.remove('text-green-600', 'text-gray-700');
+                } else if (netCalorie < 0) {
+                    netCalorieDisplay.className = 'mt-3 p-3 rounded-lg shadow-md bg-green-100 border border-green-300 text-center';
+                    if (netCalorieValEl) {
+                        netCalorieValEl.classList.remove('text-red-600');
+                        netCalorieValEl.classList.add('text-green-600');
+                    }
+                    weightDirectionTextEl.innerText = `減少`;
+                    weightDirectionTextEl.classList.add('text-green-600');
+                    weightDirectionTextEl.classList.remove('text-red-600', 'text-gray-700');
+                } else {
+                    netCalorieDisplay.className = 'mt-3 p-3 rounded-lg shadow-md bg-gray-100 border border-gray-300 text-center';
+                    if (netCalorieValEl) netCalorieValEl.classList.remove('text-red-600', 'text-green-600');
+                    weightDirectionTextEl.innerText = `無變化`;
+                    weightDirectionTextEl.classList.add('text-gray-700');
+                    weightDirectionTextEl.classList.remove('text-red-600', 'text-green-600');
+                }
+            }
+
+            // 6. 繪製圖表
+            drawCalorieBalanceChart(bmr, nonBmrBurn, totalExerciseBurn, daily_intake);
+            
+            // 使用所有參數進行迭代計算的繪圖
+            drawWeightPredictionChart(
+                gender, 
+                height_cm, 
+                age_years, 
+                activity_level, 
+                weight_kg, 
+                totalExerciseBurn, // 初始體重下的運動消耗
+                daily_intake
+            );
+        }
+
+        // --- 初始化 ---
+
+        window.onload = function() {
+            // 初始化 Slider 顯示值
+            updateValue('height');
+            updateValue('weight');
+            updateValue('age');
+
+            // 初始時增加一張運動卡片
+            addExerciseCard(); 
+
+            // 初始計算
+            calculate();
+
+            // 確保 Chart.js 知道如何處理高度變化 (在桌面模式下會需要)
+            window.addEventListener('resize', () => {
+                if (calorieBalanceChart) calorieBalanceChart.resize();
+                if (weightPredictionChart) weightPredictionChart.resize();
+            });
+        };
+
+    </script>
+</body>
+</html>
