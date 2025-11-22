@@ -133,7 +133,7 @@
                     <!-- 每日飲食攝取量 -->
                     <div>
                         <label for="daily-intake" class="block text-gray-600 mb-1 font-medium text-sm">每日飲食卡路里攝取量 (大卡)</label>
-                        <input type="number" id="daily-intake" min="500" max="5000" value="2000" class="w-full p-2 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="calculate()" onblur="calculate()">
+                        <input type="number" id="daily-intake" min="0" max="5000" value="2000" class="w-full p-2 border border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" onchange="calculate()" onblur="calculate()">
                         <p class="text-xs text-gray-500 mt-1">
                             💡 **參考錨點：** 女性約 1800 大卡；男性約 2200 大卡。
                         </p>
@@ -141,7 +141,7 @@
                 </div>
 
                 <!-- B. 運動計劃輸入 - 【RWD 修正區域】讓其在手機上自然流動，桌面填滿剩餘高度並內部捲動 -->
-                <div id="input-exercise" class="card p-4 flex flex-col lg:flex-1 lg:overflow-hidden min-h-[250px]">
+                <div id="input-exercise" class="card p-4 flex flex-col lg:flex-1 lg:overflow-hidden min-h-[350px]">
                     <h2 class="text-xl font-semibold mb-3 text-gray-700 flex-shrink-0">B. 運動計劃模擬 (每天)</h2>
                     
                     <!-- 運動卡片列表：在手機上會自然伸展，在桌面端 (lg) 才會啟用內部滾動和高度填滿 -->
@@ -228,18 +228,18 @@
 
                 <h3 class="text-xl font-semibold mt-4">基礎代謝率 (BMR)</h3>
                 <p>單位：大卡/天 (kcal/day)</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 min-w-[510px]">
                     <p><strong>男性 (Men):</strong></p>
                     $$ \text{BMR} = 88.362 + (13.397 \times W) + (4.799 \times H) - (5.677 \times A) $$
                     <p><strong>女性 (Women):</strong></p>
                     $$ \text{BMR} = 447.593 + (9.247 \times W) + (3.098 \times H) - (4.330 \times A) $$
                     <p class="text-sm mt-2">其中：<br>
-                    $$ \text{W} = \text{體重 (公斤), } H = \text{身高 (公分), } A = \text{年齡 (歲)} $$</p>
+                    $$ \text W = \text{體重 (公斤), } H = \text{身高 (公分), } A = \text{年齡 (歲)} $$</p>
                 </div>
 
                 <h3 class="text-xl font-semibold mt-4">每日總能量消耗 (TDEE)</h3>
-                <p>$$ \text{TDEE } 是基於 \text{ BMR}、非運動活動因子 (\text{AF}_{NEAT}) 和每日運動消耗的總和。 $$</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <p>TDEE 是基於 [ BMR X 非運動活動因子 ] 和每日運動消耗的總和。</p>
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 min-w-[390px]">
                     $$ \text{TDEE} = (\text{BMR} \times \text{AF}_{NEAT}) + \text{每日運動消耗} $$
                     <p class="text-sm mt-2">其中：<br>
                     $$ \text{AF}_{NEAT} = \text{非運動活動因子 (從輸入的活動水平決定)} $$</p>
@@ -254,7 +254,7 @@
 
                 <h3 class="text-xl font-semibold mt-4">體重趨勢預測</h3>
                 <p>體重變化基於熱量盈餘或赤字，約 7700 大卡（kcal）等於 1 公斤（kg）體重變化。計算會根據體重變化，每天重新計算新的 BMR 和 TDEE。</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200 min-w-[350px]">
                     $$ \text{每日卡路里差異} (\text{kcal}) = \text{每日攝取} - \text{TDEE} $$
                     $$ \text{每日體重變化} (\text{kg}) \approx \frac{\text{每日卡路里差異}}{7700} $$
                 </div>
@@ -645,8 +645,8 @@
             let daily_intake = parseFloat(daily_intake_input?.value || 2000);
 
             // 確保值在有效範圍內
-            if (isNaN(daily_intake) || daily_intake < 500) {
-                daily_intake = 500;
+            if (isNaN(daily_intake) || daily_intake < 0) {
+                daily_intake = 0;
             } else if (daily_intake > 5000) {
                 daily_intake = 5000;
             }
