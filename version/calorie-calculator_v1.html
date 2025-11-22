@@ -8,16 +8,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Chart.js 繪圖 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
-    <!-- ADDED: 引入 MathJax 3 for rendering LaTeX formulas in the modal -->
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <style>
         /* 設置基本字體和背景 */
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
             background-color: #f7f9fb;
-            min-height: 100vh;
-            overflow-y: auto; 
-            overflow-x: hidden; /* 防止水平滾動 */
         }
         /* 卡片樣式 */
         .card {
@@ -79,13 +74,7 @@
     </style>
 </head>
 <body class="p-4 lg:p-8">
-    <div id="main-container" class="flex flex-col items-center min-h-screen w-full p-4 md:p-8 bg-[#f7f9fb] relative">
-        <!-- ADDED: Technical Specs Button (Top Right) (Fix 2) -->
-        <button id="open-specs-btn" class="absolute top-4 right-4 md:top-8 md:right-8 p-3 bg-white hover:bg-gray-100 text-[#4f46e5] rounded-full shadow-lg transition duration-200 focus:outline-none focus:ring-2 focus:ring-[#4f46e5] z-10" aria-label="Open Technical Specifications">
-            <!-- Lucide book-open-text icon -->
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-book-open-text"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/><path d="M6 8h2"/><path d="M6 12h2"/><path d="M16 12h2"/><path d="M16 8h2"/></svg>
-        </button>
-        
+    <div id="main-container" class="max-w-6xl mx-auto flex flex-col">
         <h1 class="text-3xl lg:text-4xl font-extrabold text-gray-800 mb-4 primary-color text-center flex-shrink-0">
             卡路里消耗與體重趨勢模擬器
         </h1>
@@ -94,7 +83,7 @@
         <div id="main-layout" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:flex-grow">
 
             <!-- 左側輸入欄：在桌面端會填滿高度 -->
-            <div class="flex flex-col space-y-4 lg:h-full lg:overflow-y-auto">>
+            <div class="flex flex-col space-y-4 lg:h-full">
 
                 <!-- A. 基本條件輸入 - 固定高度 -->
                 <div id="input-bmc" class="card flex-shrink-0">
@@ -207,59 +196,6 @@
                 </div>
 
             </div>
-        </div>
-    </div>
-
-    <!-- ADDED: Technical Specs Modal (Hidden by Default) (Fix 2) -->
-    <div id="specs-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop">
-        <div class="bg-white rounded-xl shadow-2xl w-11/12 md:max-w-4xl mx-auto p-6 md:p-10 transform transition-all duration-300 max-h-[90vh] overflow-y-auto relative">
-            
-            <!-- Close Button -->
-            <button id="close-specs-btn" class="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-800 rounded-full hover:bg-gray-100 transition">
-                <!-- Lucide x icon -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </button>
-            
-            <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">技術規格：計算模型</h2>
-            
-            <div id="spec-content" class="prose max-w-none space-y-4">
-                <!-- CONTENT CONVERTED FROM MD/LATEX TO HTML/MATHJAX -->
-                <p>本模型採用修訂版的 Harris-Benedict 公式計算基礎代謝率 (BMR)，並結合非運動熱量消耗 (NEAT) 和運動生熱 (TEA) 計算每日總能量消耗 (TDEE)。</p>
-
-                <h3 class="text-xl font-semibold mt-4">基礎代謝率 (BMR)</h3>
-                <p>單位：大卡/天 (kcal/day)</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <p><strong>男性 (Men):</strong></p>
-                    $$ \text{BMR} = 88.362 + (13.397 \times W) + (4.799 \times H) - (5.677 \times A) $$
-                    <p><strong>女性 (Women):</strong></p>
-                    $$ \text{BMR} = 447.593 + (9.247 \times W) + (3.098 \times H) - (4.330 \times A) $$
-                    <p class="text-sm mt-2">其中：<br>
-                    $$ \text{W} = \text{體重 (公斤), } H = \text{身高 (公分), } A = \text{年齡 (歲)} $$</p>
-                </div>
-
-                <h3 class="text-xl font-semibold mt-4">每日總能量消耗 (TDEE)</h3>
-                <p>$$ \text{TDEE } 是基於 \text{ BMR}、非運動活動因子 (\text{AF}_{NEAT}) 和每日運動消耗的總和。 $$</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    $$ \text{TDEE} = (\text{BMR} \times \text{AF}_{NEAT}) + \text{每日運動消耗} $$
-                    <p class="text-sm mt-2">其中：<br>
-                    $$ \text{AF}_{NEAT} = \text{非運動活動因子 (從輸入的活動水平決定)} $$</p>
-                    <ul class="list-disc ml-6 mt-2 text-sm space-y-1">
-                        <li>久坐不動 (Sedentary): $$\text{AF}_{NEAT} = 1.2$$</li>
-                        <li>輕度活動 (Lightly Active): $$\text{AF}_{NEAT} = 1.375$$</li>
-                        <li>中度活動 (Moderately Active): $$\text{AF}_{NEAT} = 1.55$$</li>
-                        <li>高度活動 (Very Active): $$\text{AF}_{NEAT} = 1.725$$</li>
-                        <li>極度活動 (Extra Active): $$\text{AF}_{NEAT} = 1.9$$</li>
-                    </ul>
-                </div>
-
-                <h3 class="text-xl font-semibold mt-4">體重趨勢預測</h3>
-                <p>體重變化基於熱量盈餘或赤字，約 7700 大卡（kcal）等於 1 公斤（kg）體重變化。計算會根據體重變化，每天重新計算新的 BMR 和 TDEE。</p>
-                <div class="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    $$ \text{每日卡路里差異} (\text{kcal}) = \text{每日攝取} - \text{TDEE} $$
-                    $$ \text{每日體重變化} (\text{kg}) \approx \frac{\text{每日卡路里差異}}{7700} $$
-                </div>
-            </div>
-
         </div>
     </div>
 
@@ -740,54 +676,6 @@
                 totalExerciseBurn, // 初始體重下的運動消耗
                 daily_intake
             );
-        }
-
-        // --- Modal & MathJax Handling Logic (ADDED) ---
-        const openSpecsBtn = document.getElementById('open-specs-btn');
-        const closeSpecsBtn = document.getElementById('close-specs-btn');
-        const specsModal = document.getElementById('specs-modal');
-        const specContent = document.getElementById('spec-content');
-
-        /**
-         * Opens the modal and triggers MathJax rendering for formulas.
-         */
-        if (openSpecsBtn) {
-            openSpecsBtn.addEventListener('click', () => {
-                specsModal.classList.remove('hidden');
-                
-                // Crucial: Wait for the next frame to ensure the element is visible 
-                // before telling MathJax to typeset it.
-                window.requestAnimationFrame(() => {
-                    if (window.MathJax) {
-                        // Use MathJax.typesetPromise to ensure rendering completes
-                        MathJax.typesetPromise([specContent]).then(() => {
-                            console.log("MathJax typeset successfully completed.");
-                        }).catch((err) => {
-                            console.error("MathJax typeset error:", err);
-                        });
-                    } else {
-                        console.warn("MathJax is not loaded. Formulas will not render.");
-                    }
-                });
-            });
-        }
-
-        /**
-         * Closes the modal.
-         */
-        if (closeSpecsBtn) {
-            closeSpecsBtn.addEventListener('click', () => {
-                specsModal.classList.add('hidden');
-            });
-        }
-        
-        // Close modal when clicking outside (on the backdrop)
-        if (specsModal) {
-            specsModal.addEventListener('click', (e) => {
-                if (e.target === specsModal) {
-                    specsModal.classList.add('hidden');
-                }
-            });
         }
 
         // --- 初始化 ---
